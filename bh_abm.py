@@ -1,5 +1,7 @@
+###############################################################################
+############################# IMPORTS / WARNINGS ##############################
+###############################################################################
 
-""" Ignore Warnings """
 def warn(*args, **kwargs):
     pass
 import warnings
@@ -9,6 +11,10 @@ warnings.warn = warn
 import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp
+
+###############################################################################
+################################ MAIN ABM CODE ################################
+###############################################################################
 
 def bh_abm(beta = 1.0,
            n_1 = 0.5,
@@ -130,7 +136,28 @@ def bh_abm(beta = 1.0,
 
     return simulated_data
 
-print "bh_abm successfully imported"
+###############################################################################
+############################### CALIBRATION CODE ##############################
+###############################################################################
+
+def bh_abm_get_real_data():
+    """ 
+    Get real data sample from file named sp500.csv .
+    
+    Returns
+    -------
+    sample:
+        Differenced real data sample.
+    """
+    
+    # Read in data using pandas 
+    data_close = pd.read_csv('/Users/b4017054/Documents/Work/Newcastle/PhD/ABM/sani/sp500.csv')
+    # Set 'Date' as the index
+    data_close.index = data_close['Date']
+    # Sample the 'Adj Close' column, difference it by one, and drop any NA's
+    sample = np.log(data_close['Adj Close']).diff(1).dropna()
+    
+    return sample
 
 def bh_abm_callibration_measures(simulated_data, 
                                  real_data):
@@ -167,12 +194,13 @@ def bh_abm_callibration_measures(simulated_data,
         # Reject if p-value is less than 5%
         if p_value < 0.05:
             response = 1.0
-    
 
     return p_value, response
-        
-print "bh_abm_statistic successfully imported"
 
+###############################################################################
+############################ RUN ON PARAMETER SETS ############################
+###############################################################################
+      
 def bh_abm_on_set(parameter_combinations):
     """
     Run bh_abm on a set of parameter combinations.
@@ -194,6 +222,7 @@ def bh_abm_on_set(parameter_combinations):
     p_values = np.zeros(parameter_combinations.shape[0])
     responses = np.zeros(parameter_combinations.shape[0])
     
+    # Get the real data to callibrate against
     real_data = bh_abm_get_real_data()
 
     for i, (beta, n_1, b_1, b_2, g_1, g_2, C, w, sigma, v, r) in enumerate(parameter_combinations):
@@ -215,29 +244,6 @@ def bh_abm_on_set(parameter_combinations):
         p_values[i], responses[i] = bh_abm_callibration_measures(simulated_data, real_data)
 
     return p_values, responses
-
-print "bh_abm_on_set successfully imported"
-
-def bh_abm_get_real_data():
-    """ 
-    Get real data sample from file named sp500.csv .
-    
-    Returns
-    -------
-    sample:
-        Differenced real data sample.
-    """
-    
-    # Read in data using pandas 
-    data_close = pd.read_csv('/Users/b4017054/Documents/Work/Newcastle/PhD/ABM/sani/sp500.csv')
-    # Set 'Date' as the index
-    data_close.index = data_close['Date']
-    # Sample the 'Adj Close' column, difference it by one, and drop any NA's
-    sample = np.log(data_close['Adj Close']).diff(1).dropna()
-    
-    return sample
-
-print "bh_abm_get_real_data successfully imported"
 
 def bh_abm_evaluate_samples(unirand_train_samples, 
                             unirand_test_samples):
@@ -263,7 +269,3 @@ def bh_abm_evaluate_samples(unirand_train_samples,
     evaluated_Y_test = bh_abm_on_set(unirand_test_samples)
     
     return evaluated_Y_train, evaluated_Y_test
-
-print "bh_abm_evaluate_samples successfully imported"
-
-print "import bh_abm complete"

@@ -8,7 +8,7 @@ def get_unirand_parameter_samples(n_train_samples, n_test_samples, parameter_sup
     support_range = parameter_support[:, 1] - parameter_support[:, 0]
     
     # Generate training sample
-    random_samples = np.random.rand(parameter_support.shape[0], n_train_samples+ n_test_samples).T
+    random_samples = np.random.rand(parameter_support.shape[0], n_train_samples + n_test_samples).T
     unirand_samples = np.vstack([
         np.multiply(s, support_range) + parameter_support[:, 0]
         for s in random_samples])
