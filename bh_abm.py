@@ -11,6 +11,8 @@ warnings.warn = warn
 import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 ###############################################################################
 ################################ MAIN ABM CODE ################################
@@ -159,10 +161,10 @@ def bh_abm_get_real_data():
     
     return sample
 
-def bh_abm_callibration_measures(simulated_data, 
-                                 real_data):
-    """
-    B&H callibration calculation.
+def bh_abm_real_valued_calibration_measure(simulated_data,
+                                           real_data):
+    """ 
+    Real valued calibration measure for the B&H abm.
     
     Parameters
     ----------
@@ -170,17 +172,48 @@ def bh_abm_callibration_measures(simulated_data,
         GDP_growth_rate's of the simulated data (output of bh_abm_evaluate_on_set).
     real_data: array
         GDP growth rates of the real data (output of get_bh_abm_real_data).
-        
+    
     Returns
     -------
     p_value: float
         The p-value of the KS test as to wether the two distributions are equal.
-    response: 
-        The binary response as to wether the two distributions are equal under the KS test (5% threshold).
     """
     
     # Set the default response
-    response, p_value = 1.0, 0.00 # (Accept)
+    p_value = 0.00 # (Accept)
+    
+    # Check that the length of the simulated data is equal to that of the real data returns
+    if len(simulated_data) == len(real_data):
+        
+        # Set random seed
+        np.random.seed(0)
+
+        # Carry out the KS test
+        response, p_value = ks_2samp(simulated_data, real_data)
+
+    return p_value
+
+def bh_abm_binary_calibration_measure(simulated_data,
+                                      real_data):
+    """ 
+    Binary calibration measure for the B&H abm.
+    
+    Parameters
+    ----------
+    simulated_data: array
+        GDP_growth_rate's of the simulated data (output of bh_abm_evaluate_on_set).
+    real_data: array
+        GDP growth rates of the real data (output of get_bh_abm_real_data).
+    
+    Returns
+    -------
+    response: 
+        The binary response as to wether the two distributions are equal under the KS test (5% threshold).
+        
+    """
+    
+    # Set the default response
+    response= 1.0 # (Accept)
     
     # Check that the length of the simulated data is equal to that of the real data returns
     if len(simulated_data) == len(real_data):
@@ -195,13 +228,13 @@ def bh_abm_callibration_measures(simulated_data,
         if p_value < 0.05:
             response = 1.0
 
-    return p_value, response
+    return response
 
 ###############################################################################
 ############################ RUN ON PARAMETER SETS ############################
 ###############################################################################
       
-def bh_abm_on_set(parameter_combinations):
+def bh_abm_on_set(parameter_combinations, calibration_measure):
     """
     Run bh_abm on a set of parameter combinations.
     
@@ -209,6 +242,8 @@ def bh_abm_on_set(parameter_combinations):
     ----------
     parameter_combinations: array
         Array of parameter combinations to run the bh_abm on.
+    calibration_measure: ["real_valued", "binary"]
+        The calibration measure that you wish to use.    
         
     Returns
     -------
@@ -219,8 +254,7 @@ def bh_abm_on_set(parameter_combinations):
     """
     
     # Pre allocate array to store results in
-    p_values = np.zeros(parameter_combinations.shape[0])
-    responses = np.zeros(parameter_combinations.shape[0])
+    response = np.zeros(parameter_combinations.shape[0])
     
     # Get the real data to callibrate against
     real_data = bh_abm_get_real_data()
@@ -240,13 +274,17 @@ def bh_abm_on_set(parameter_combinations):
                                 v = v,
                                 r = r)
                 
-        # Input it into the array
-        p_values[i], responses[i] = bh_abm_callibration_measures(simulated_data, real_data)
+        # Input the calibration metric into the array
+        if calibration_measure == "real_valued":
+            response[i] = bh_abm_real_valued_calibration_measure(simulated_data, real_data)
+        if calibration_measure == "binary":
+            response[i] = bh_abm_binary_calibration_measure(simulated_data, real_data)
 
-    return p_values, responses
+    return response
 
 def bh_abm_evaluate_samples(unirand_train_samples, 
-                            unirand_test_samples):
+                            unirand_test_samples,
+                            calibration_measure):
     """ 
     Evaluate the B&H abm on the train and test samples provided.
     
@@ -256,6 +294,8 @@ def bh_abm_evaluate_samples(unirand_train_samples,
         Array of training parameter combinations to run the bh_abm on.
     unirand_test_samples: array
         Array of training parameter combinations to run the bh_abm on.
+    calibration_measure: ["real_valued", "binary"]
+        The calibration measure that you wish to use.
     
     Returns
     ------
@@ -264,8 +304,46 @@ def bh_abm_evaluate_samples(unirand_train_samples,
     evaluated_Y_test: array
         Test labels for binary and real valued case.
     """
-    evaluated_Y_train = bh_abm_on_set(unirand_train_samples)
+    evaluated_Y_train = bh_abm_on_set(unirand_train_samples, calibration_measure)
     
-    evaluated_Y_test = bh_abm_on_set(unirand_test_samples)
+    evaluated_Y_test = bh_abm_on_set(unirand_test_samples, calibration_measure)
     
     return evaluated_Y_train, evaluated_Y_test
+
+def bh_abm_make_plot(data, 
+                         title):
+    """ 
+    Plot the distributions of the B&H ABM parameters
+    
+    Parameters
+    ----------
+    data: DataFrame
+        Contains the parameter sets to be plotted.
+    title: String
+        Title of the plot.
+        
+    Returns
+    ------
+    plot:
+        Plot of the parameter distributions.
+        
+    """
+    
+    # Plot the prior distributions of each parameter
+    f, axes = plt.subplots(3, 4, figsize=(7, 7))
+    f.suptitle(title)
+    sns.distplot(data["beta"],                 ax=axes[0, 0], rug = True)
+    sns.distplot(data["n_1"],                  ax=axes[0, 1], rug = True)
+    sns.distplot(data["b_1"],                  ax=axes[0, 2], rug = True)
+    sns.distplot(data["b_2"],                  ax=axes[0, 3], rug = True)
+    sns.distplot(data["g_1"],                  ax=axes[1, 0], rug = True)
+    sns.distplot(data["g_2"],                  ax=axes[1, 1], rug = True)
+    sns.distplot(data["C"],                    ax=axes[1, 2], rug = True)
+    sns.distplot(data["w"],                    ax=axes[1, 3], rug = True)
+    sns.distplot(data["sigma"],                ax=axes[2, 0], rug = True)    
+    sns.distplot(data["v"],                    ax=axes[2, 1], rug = True)
+    sns.distplot(data["r"],                    ax=axes[2, 2], rug = True)
+    f.tight_layout()
+    plt.subplots_adjust(top = 0.9)
+    
+    return plt.show()
