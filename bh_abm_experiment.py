@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 
 
 # Set the ABM Evaluation Budget
-n_train_samples = 100
+n_train_samples = 10000000
 
 # Set test size
-n_test_samples = 100
+n_test_samples = 0
 
 # Set the ABM parameters and support
 bh_abm_exploration_range = np.array([(0.0, 10.0),  # beta  (intensity of choice)
@@ -66,8 +66,8 @@ bh_abm_make_plot(df_realvalued,
                      "(Real Valued) Prior distributions for " + str(df_realvalued.shape[0]) + " simulations")
 
 # Subset the dataframe to just the accepted parameters, this is where we define eps
-eps = 1
-df_realvalued_success = df_realvalued[df_realvalued["result"] < 0.05]
+eps = 0.05
+df_realvalued_success = df_realvalued[df_realvalued["result"] < eps]
  
 # Plot the posterior distributions of each parameter
 bh_abm_make_plot(df_realvalued_success, 

@@ -29,7 +29,7 @@ def bh_abm(beta = 1.0,
            sigma = 0.1,
            v = 1,
            r = 0.1,
-           T = 502,
+           T = 503,
            _RNG_SEED = 0):
     """
     Simulation of B&H asset pricing model.
@@ -81,7 +81,7 @@ def bh_abm(beta = 1.0,
     
     # Check that R * x_t is going to be positive [x_t = p_t - p_t^* (deviation from fundamental price)]
     if (n_1 * (g_1 * x_prev + b_1)) + ((1 - n_1) * (g_2 * x_prev + b_2)) > 0:
-            
+                    
         # Set random seed
         np.random.seed(_RNG_SEED)
         random_dividend = np.random.uniform(low = -0.1, high = 0.1, size = T)
@@ -133,6 +133,7 @@ def bh_abm(beta = 1.0,
             
         # If there are no nan values (diverging behaviour)...
         if X[~np.isnan(X)].shape[0] == T:
+                        
             # Return the first order differences
             simulated_data = np.diff(np.log(X[~np.isnan(X)]))
 
@@ -156,6 +157,7 @@ def bh_abm_get_real_data():
     data_close = pd.read_csv('/Users/b4017054/Documents/Work/Newcastle/PhD/ABM/sani/sp500.csv')
     # Set 'Date' as the index
     data_close.index = data_close['Date']
+    
     # Sample the 'Adj Close' column, difference it by one, and drop any NA's
     sample = np.log(data_close['Adj Close']).diff(1).dropna()
     
@@ -180,7 +182,7 @@ def bh_abm_real_valued_calibration_measure(simulated_data,
     """
     
     # Set the default response
-    p_value = 0.00 # (Accept)
+    p_value = 1.00 # (Reject)
     
     # Check that the length of the simulated data is equal to that of the real data returns
     if len(simulated_data) == len(real_data):
@@ -213,8 +215,8 @@ def bh_abm_binary_calibration_measure(simulated_data,
     """
     
     # Set the default response
-    response= 1.0 # (Accept)
-    
+    response = 0.0 # (Reject)
+        
     # Check that the length of the simulated data is equal to that of the real data returns
     if len(simulated_data) == len(real_data):
         
@@ -226,7 +228,7 @@ def bh_abm_binary_calibration_measure(simulated_data,
 
         # Reject if p-value is less than 5%
         if p_value < 0.05:
-            response = 1.0
+            response = 1.0 # Accept it
 
     return response
 
