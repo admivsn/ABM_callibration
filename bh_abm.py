@@ -136,6 +136,7 @@ def bh_abm(beta = 1.0,
                         
             # Return the first order differences
             simulated_data = np.diff(np.log(X[~np.isnan(X)]))
+            
 
     return simulated_data
 
@@ -186,7 +187,7 @@ def bh_abm_real_valued_calibration_measure(simulated_data,
     
     # Check that the length of the simulated data is equal to that of the real data returns
     if len(simulated_data) == len(real_data):
-        
+                
         # Set random seed
         np.random.seed(0)
 
@@ -229,6 +230,8 @@ def bh_abm_binary_calibration_measure(simulated_data,
         # Reject if p-value is less than 5%
         if p_value < 0.05:
             response = 1.0 # Accept it
+        else:
+            response = 0.0 # Reject it
 
     return response
 
@@ -349,3 +352,4 @@ def bh_abm_make_plot(data,
     plt.subplots_adjust(top = 0.9)
     
     return plt.show()
+

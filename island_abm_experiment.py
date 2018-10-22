@@ -6,15 +6,17 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-
-
-
-
 # Set the ABM Evaluation Budget
 n_train_samples = 100
 
 # Set test size
 n_test_samples = 100
+
+# Define Monte Carlo simulations
+n_monte_carlo = 2
+
+# Final test set size
+n_final_test_samples = n_test_samples * n_monte_carlo
 
 # Set the ABM parameters and support
 island_abm_exploration_range = np.array([(0.0, 10.0),  # rho            (degree of locality in the diffustion of knowledge)
@@ -27,47 +29,49 @@ island_abm_exploration_range = np.array([(0.0, 10.0),  # rho            (degree 
 # Get parameters for train and test from the support
 X_train, X_test = get_unirand_parameter_samples(n_train_samples, n_test_samples, island_abm_exploration_range)
 
-#####
-
-# Run the ABM on the train and test parameters in BINARY case...
-y_train, y_test =  island_abm_evaluate_samples(X_train, X_test, "binary")
-
-# Make dataframe of the training data
-df_binary = pd.concat([pd.DataFrame(X_train, columns = ["rho", "lambda_param", "alpha", "phi", "pi", "eps"]), 
-                       pd.DataFrame(y_train, columns = ["result"])], 
-                       axis = 1)
-
-# Plot the prior distributions of each parameter
-island_abm_make_plot(df_binary, 
-                     "(Binary) Prior distributions for " + str(df_binary.shape[0]) + " simulations")
-
-# Subset the dataframe to just the accepted parameters
-df_binary_success = df_binary[df_binary["result"] == 1.0]
-
-# Plot the posterior distributions of each parameter
-island_abm_make_plot(df_binary_success, 
-                     "(Binary) Posterior distributions for " + str(df_binary_success.shape[0]) + " acceptances")
-
-#####
-
-# Run the ABM on the train and test parameters in REALVALUED case...
+# Run the ABM on the train and test parameters in  REALVALUED case...
 y_train, y_test =  island_abm_evaluate_samples(X_train, X_test, "real_valued")
 
-# Make dataframe of the training data
-df_realvalued = pd.concat([pd.DataFrame(X_train, columns = ["rho", "lambda_param", "alpha", "phi", "pi", "eps"]), 
-                           pd.DataFrame(y_train, columns = ["result"])], 
-                           axis = 1)
+# Train a LinearRegression model
+LinearRegression_model = fit_surrogate_as_linear_regression(X_train, y_train)
 
-# Plot the prior distributions of each parameter
-island_abm_make_plot(df_realvalued, 
-                     "(Real Valued) Prior distributions for " + str(df_realvalued.shape[0]) + " simulations")
+# Train a surrogate GaussianProcessRegressor model
+GaussianProcessRegressor_model = fit_surrogate_as_gp_regression(X_train, y_train)
 
-# Subset the dataframe to just the accepted parameters, this is where we define eps
-eps = 1
-df_realvalued_success = df_realvalued[df_realvalued["result"] > eps]
- 
-# Plot the posterior distributions of each parameter
-island_abm_make_plot(df_realvalued_success, 
-                     "(Real Valued) Posterior distributions for " + str(df_realvalued_success.shape[0]) + " acceptances")
+# Train a surrogate GradientBoostingRegressor model
+GradientBoostingRegressor_model = fit_surrogate_as_gbt_regression(X_train, y_train)
 
-#####
+# Evaluate the surrogates on the test set
+y_hat_test = [None] * 3
+y_hat_test[0] = LinearRegression_model.predict(X_test)
+y_hat_test[1] = GaussianProcessRegressor_model.predict(X_test)
+y_hat_test[2] = GradientBoostingRegressor_model.predict(X_test)
+
+# MSE performance
+mse_performance = np.zeros((3, n_monte_carlo))
+for sur_idx in range(len(y_hat_test)):
+    for i in range(n_monte_carlo):
+        print "sur_idx", sur_idx, "i", i
+        mse_performance[sur_idx, i] = mean_squared_error(y_test[i * n_test_samples:(i + 1) * n_test_samples], y_hat_test[int(sur_idx)][i * n_test_samples:(i + 1) * n_test_samples])
+         
+# Plot the Monte Carlo performance densities for each of the methods
+experiment_labels = ["LinearRegression", "GaussianProcessRegressor", "GradientBoostingRegressor"]
+
+mse_performance = pd.DataFrame(mse_performance, index = experiment_labels)
+
+LinearRegression_label = "LinearRegression: Mean " + '{:2.5f}'.format(mse_performance.iloc[0, :].mean()) + ", Variance " + '{:2.5f}'.format(mse_performance.iloc[0, :].var())
+GaussianProcessRegressor_label = "GaussianProcessRegressor: Mean " + '{:2.5f}'.format(mse_performance.iloc[1, :].mean()) + ", Variance " + '{:2.5f}'.format(mse_performance.iloc[1, :].var())
+GradientBoostingRegressor_label = "GradientBoostingRegressor: Mean " + '{:2.5f}'.format(mse_performance.iloc[2, :].mean()) + ", Variance " + '{:2.5f}'.format(mse_performance.iloc[2, :].var())
+
+fig, ax = plt.subplots(figsize=(12, 5))
+sns.distplot(mse_performance.iloc[0, :], label = LinearRegression_label, ax = ax)
+sns.distplot(mse_performance.iloc[1, :], label = GaussianProcessRegressor_label, ax = ax)
+sns.distplot(mse_performance.iloc[2, :], label = GradientBoostingRegressor_label, ax = ax)
+
+plt.title("Prediction Performance")
+plt.xlabel('Mean-Squared Error')
+plt.yticks([])
+
+plt.legend()
+plt.show()
+

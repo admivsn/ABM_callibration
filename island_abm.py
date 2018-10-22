@@ -145,12 +145,7 @@ def island_abm(rho = 0.01,
                         
         GDP[t] = np.sum(A[:, 4])
     
-    
-    
-    if GDP[2:].all() != 0.0:
-        log_GDP = np.log(GDP)
-    else:
-        log_GDP = np.zeros(T)
+    log_GDP = np.log(GDP)
     
     return log_GDP
 
@@ -169,7 +164,7 @@ def island_abm_real_valued_calibration_measure(log_GDP):
         The value of b from the fitted exponential power distribution.
     """
     
-    # Initialise the callibration output to fail
+    # Initialise the callibration output to 0 (a fail in binary case)
     b = 0
     
     # Get rid of inf and nan values
@@ -218,7 +213,7 @@ def island_abm_binary_calibration_measure(log_GDP):
             b, mean, a = exponpow.fit(log_GDP)
             
             # Condition
-            if b > 1:
+            if b > 1: # No fat tails if b > 1
                 calibration = 1
 
     return calibration
